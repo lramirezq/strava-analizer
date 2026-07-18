@@ -17,11 +17,30 @@ Personal training analytics app that connects to Strava to download, organize, a
 
 ## Screenshots
 
-### Dashboard with fitness/fatigue/form tracking
-The main dashboard shows your current CTL (fitness), ATL (fatigue), and TSB (form) with projections for rest days.
+### Dashboard
+CTL/ATL/TSB chart with readiness indicator and weekly TSS
 
-### Activity detail with HR zones and recovery estimate
-Each activity shows time-in-zones, HR/power streams chart, and estimated recovery timeline.
+![Dashboard](docs/screenshots/dashboard.png)
+
+### Activity Detail
+HR streams, zone distribution, recovery projection, and similar rides
+
+![Activity Detail](docs/screenshots/activity-detail.png)
+
+### All Activities
+Sortable, filterable list of all your activities with recovery estimates
+
+![Activities](docs/screenshots/activities.png)
+
+### Pacing Calculator
+Target HR/watts/speed for any planned ride based on your current fitness
+
+![Pacing Calculator](docs/screenshots/pacing.png)
+
+### Zone Manager
+Configure custom power and HR zones with auto-calculation
+
+![Zone Manager](docs/screenshots/zones.png)
 
 ## Quick Start
 
