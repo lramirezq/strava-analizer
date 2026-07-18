@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🚴 Zone Manager</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0f1117; color: #e1e4e8; padding: 20px; max-width: 900px; margin: 0 auto; }
+        a { color: #58a6ff; text-decoration: none; }
+        h1 { font-size: 1.5rem; margin-bottom: 8px; }
+        .back { margin-bottom: 16px; display: inline-block; font-size: 0.9rem; }
+        .subtitle { color: #8b949e; margin-bottom: 24px; }
+        .section { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 20px; margin-bottom: 20px; }
+        .section h2 { font-size: 1rem; color: #8b949e; text-transform: uppercase; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+        .ftp-row { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+        .ftp-row label { font-size: 0.85rem; color: #8b949e; }
+        .ftp-row input { width: 80px; background: #0d1117; border: 1px solid #30363d; color: #e1e4e8; padding: 8px; border-radius: 6px; font-size: 1rem; text-align: center; }
+        .ftp-row .unit { color: #8b949e; font-size: 0.9rem; }
+        .zone-table { width: 100%; border-collapse: collapse; }
+        .zone-table th { text-align: left; font-size: 0.75rem; color: #8b949e; padding: 6px 8px; text-transform: uppercase; }
+        .zone-table td { padding: 4px 8px; }
+        .zone-table input { width: 100%; background: #0d1117; border: 1px solid #30363d; color: #e1e4e8; padding: 6px 8px; border-radius: 4px; font-size: 0.9rem; }
+        .zone-table input[type="number"] { width: 70px; text-align: center; }
+        .zone-table input[type="text"] { width: 100%; }
+        .zone-table tr { border-bottom: 1px solid #21262d; }
+        .zone-table .color-dot { width: 12px; height: 12px; border-radius: 50%; display: inline-block; }
+        .btn { background: #238636; color: #fff; border: none; padding: 8px 20px; border-radius: 6px; cursor: pointer; font-size: 0.85rem; font-weight: 600; }
+        .btn:hover { background: #2ea043; }
+        .btn-secondary { background: #30363d; }
+        .btn-secondary:hover { background: #3d444d; }
+        .btn-danger { background: #da3633; }
+        .btn-danger:hover { background: #f85149; }
+        .actions { display: flex; gap: 8px; margin-top: 16px; }
+        .toast { position: fixed; bottom: 20px; right: 20px; background: #238636; color: #fff; padding: 12px 20px; border-radius: 8px; font-size: 0.9rem; display: none; z-index: 999; }
+        .zone-colors { display: flex; gap: 4px; }
+        .zone-colors input[type="color"] { width: 28px; height: 28px; border: none; border-radius: 4px; cursor: pointer; background: none; }
+        .add-btn { background: none; border: 1px dashed #30363d; color: #8b949e; padding: 8px; width: 100%; border-radius: 4px; cursor: pointer; font-size: 0.85rem; margin-top: 8px; }
+        .add-btn:hover { border-color: #58a6ff; color: #58a6ff; }
+        .remove-btn { background: none; border: none; color: #f85149; cursor: pointer; font-size: 1.2rem; padding: 4px 8px; }
+        .remove-btn:hover { background: #3d1f1f; border-radius: 4px; }
+    </style>
+</head>
+<body>
+    <a href="/" class="back">← Dashboard</a>
+    <h1>⚙️ Zone Manager</h1>
+    <p class="subtitle">Configura tus zonas de potencia y frecuencia cardíaca</p>
+
+    <div class="section">
+        <h2>⚡ Zonas de Potencia</h2>
+        <div class="ftp-row">
+            <label>FTP:</label>
+            <input type="number" id="ftp" value="194">
+            <span class="unit">W</span>
+            <button class="btn-secondary btn" onclick="autoCalcPower()" style="margin-left:12px">Auto-calcular desde FTP</button>
+        </div>
+        <table class="zone-table" id="power-zones-table">
+            <thead>
+                <tr><th></th><th>Nombre</th><th>Min (W)</th><th></th><th>Max (W)</th><th></th></tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+        <button class="add-btn" onclick="addZone('power')">+ Agregar zona</button>
+    </div>
+
+    <div class="section">
+        <h2>❤️ Zonas de Frecuencia Cardíaca</h2>
+        <div class="ftp-row">
+            <label>FC Máxima:</label>
+            <input type="number" id="max-hr" value="195">
+            <span class="unit">bpm</span>
+            <label style="margin-left:16px">FC Reposo:</label>
+            <input type="number" id="rest-hr" value="60">
+            <span class="unit">bpm</span>
+            <button class="btn-secondary btn" onclick="autoCalcHR()" style="margin-left:12px">Auto-calcular desde FC Max</button>
+        </div>
+        <table class="zone-table" id="hr-zones-table">
+            <thead>
+                <tr><th></th><th>Nombre</th><th>Min (bpm)</th><th></th><th>Max (bpm)</th><th></th></tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+        <button class="add-btn" onclick="addZone('hr')">+ Agregar zona</button>
+    </div>
+
+    <div class="actions">
+        <button class="btn" onclick="saveZones()">💾 Guardar</button>
+        <button class="btn btn-secondary" onclick="loadZones()">↺ Descartar cambios</button>
+    </div>
+
+    <div class="toast" id="toast">✅ Zonas guardadas</div>
+
+    <script>
+        const defaultPowerZones = [
+            { name: "Z1 Recuperación Activa", min: 0, max: 133, color: "#3d8bfd" },
+            { name: "Z2 Endurance", min: 134, max: 170, color: "#3fb950" },
+            { name: "Z3 Tempo", min: 171, max: 182, color: "#d29922" },
+            { name: "Z3 Sweet Spot", min: 183, max: 191, color: "#e09b13" },
+            { name: "Z4 Umbral - FTP", min: 192, max: 230, color: "#f0883e" },
+            { name: "Z5 VO2 MAX", min: 231, max: 290, color: "#f85149" },
+            { name: "Z6 Capacidad Anaeróbica", min: 291, max: 363, color: "#da3633" },
+            { name: "Z7 Anaerobic Power", min: 364, max: 484, color: "#b62324" },
+            { name: "Z8 Neuromuscular", min: 485, max: 950, color: "#8b1a1a" },
+        ];
+
+        const defaultHRZones = [
+            { name: "Z1 Recovery", min: 0, max: 110, color: "#3d8bfd" },
+            { name: "Z2 Endurance", min: 111, max: 145, color: "#3fb950" },
+            { name: "Z3 Tempo", min: 146, max: 163, color: "#d29922" },
+            { name: "Z4 Threshold", min: 164, max: 180, color: "#f0883e" },
+            { name: "Z5 VO2max", min: 181, max: 195, color: "#f85149" },
+        ];
+
+        function renderTable(type, zones) {
+            const tbody = document.querySelector(`#${type}-zones-table tbody`);
+            tbody.innerHTML = zones.map((z, i) => `
+                <tr>
+                    <td><input type="color" value="${z.color}" data-idx="${i}" data-type="${type}" onchange="updateColor(this)"></td>
+                    <td><input type="text" value="${z.name}" data-idx="${i}" data-type="${type}" data-field="name"></td>
+                    <td><input type="number" value="${z.min}" data-idx="${i}" data-type="${type}" data-field="min"></td>
+                    <td style="color:#8b949e; text-align:center">a</td>
+                    <td><input type="number" value="${z.max}" data-idx="${i}" data-type="${type}" data-field="max"></td>
+                    <td><button class="remove-btn" onclick="removeZone('${type}', ${i})">×</button></td>
+                </tr>
+            `).join('');
+        }
+
+        function updateColor(el) {
+            const type = el.dataset.type;
+            const idx = parseInt(el.dataset.idx);
+            const zones = type === 'power' ? currentPowerZones : currentHRZones;
+            zones[idx].color = el.value;
+        }
+
+        function getTableData(type) {
+            const rows = document.querySelectorAll(`#${type}-zones-table tbody tr`);
+            const zones = [];
+            rows.forEach((row, i) => {
+                const inputs = row.querySelectorAll('input');
+                zones.push({
+                    color: inputs[0].value,
+                    name: inputs[1].value,
+                    min: parseInt(inputs[2].value) || 0,
+                    max: parseInt(inputs[3].value) || 0,
+                });
+            });
+            return zones;
+        }
+
+        function addZone(type) {
+            const zones = getTableData(type);
+            const lastMax = zones.length > 0 ? zones[zones.length - 1].max : 0;
+            zones.push({ name: "Nueva zona", min: lastMax + 1, max: lastMax + 50, color: "#8b949e" });
+            if (type === 'power') currentPowerZones = zones;
+            else currentHRZones = zones;
+            renderTable(type, zones);
+        }
+
+        function removeZone(type, idx) {
+            const zones = getTableData(type);
+            zones.splice(idx, 1);
+            if (type === 'power') currentPowerZones = zones;
+            else currentHRZones = zones;
+            renderTable(type, zones);
+        }
+
+        function autoCalcPower() {
+            const ftp = parseInt(document.getElementById('ftp').value) || 194;
+            const zones = [
+                { name: "Z1 Recuperación Activa", min: 0, max: Math.round(ftp * 0.55), color: "#3d8bfd" },
+                { name: "Z2 Endurance", min: Math.round(ftp * 0.55) + 1, max: Math.round(ftp * 0.75), color: "#3fb950" },
+                { name: "Z3 Tempo", min: Math.round(ftp * 0.75) + 1, max: Math.round(ftp * 0.87), color: "#d29922" },
+                { name: "Z3 Sweet Spot", min: Math.round(ftp * 0.87) + 1, max: Math.round(ftp * 0.94), color: "#e09b13" },
+                { name: "Z4 Umbral - FTP", min: Math.round(ftp * 0.94) + 1, max: Math.round(ftp * 1.05), color: "#f0883e" },
+                { name: "Z5 VO2 MAX", min: Math.round(ftp * 1.05) + 1, max: Math.round(ftp * 1.20), color: "#f85149" },
+                { name: "Z6 Capacidad Anaeróbica", min: Math.round(ftp * 1.20) + 1, max: Math.round(ftp * 1.50), color: "#da3633" },
+                { name: "Z7 Anaerobic Power", min: Math.round(ftp * 1.50) + 1, max: Math.round(ftp * 2.00), color: "#b62324" },
+                { name: "Z8 Neuromuscular", min: Math.round(ftp * 2.00) + 1, max: Math.round(ftp * 3.00), color: "#8b1a1a" },
+            ];
+            currentPowerZones = zones;
+            renderTable('power', zones);
+        }
+
+        function autoCalcHR() {
+            const maxHr = parseInt(document.getElementById('max-hr').value) || 195;
+            const restHr = parseInt(document.getElementById('rest-hr').value) || 60;
+            const reserve = maxHr - restHr;
+            const zones = [
+                { name: "Z1 Recovery", min: 0, max: Math.round(restHr + reserve * 0.60), color: "#3d8bfd" },
+                { name: "Z2 Endurance", min: Math.round(restHr + reserve * 0.60) + 1, max: Math.round(restHr + reserve * 0.70), color: "#3fb950" },
+                { name: "Z3 Tempo", min: Math.round(restHr + reserve * 0.70) + 1, max: Math.round(restHr + reserve * 0.80), color: "#d29922" },
+                { name: "Z4 Threshold", min: Math.round(restHr + reserve * 0.80) + 1, max: Math.round(restHr + reserve * 0.90), color: "#f0883e" },
+                { name: "Z5 VO2max", min: Math.round(restHr + reserve * 0.90) + 1, max: maxHr, color: "#f85149" },
+            ];
+            currentHRZones = zones;
+            renderTable('hr', zones);
+        }
+
+        let currentPowerZones = [];
+        let currentHRZones = [];
+
+        async function loadZones() {
+            const res = await fetch('/api/zones/config');
+            if (res.ok) {
+                const data = await res.json();
+                currentPowerZones = data.power_zones || defaultPowerZones;
+                currentHRZones = data.hr_zones || defaultHRZones;
+                document.getElementById('ftp').value = data.ftp || 194;
+                document.getElementById('max-hr').value = data.max_hr || 195;
+                document.getElementById('rest-hr').value = data.rest_hr || 60;
+            } else {
+                currentPowerZones = [...defaultPowerZones];
+                currentHRZones = [...defaultHRZones];
+            }
+            renderTable('power', currentPowerZones);
+            renderTable('hr', currentHRZones);
+        }
+
+        async function saveZones() {
+            const powerZones = getTableData('power');
+            const hrZones = getTableData('hr');
+            const ftp = parseInt(document.getElementById('ftp').value) || 194;
+            const maxHr = parseInt(document.getElementById('max-hr').value) || 195;
+            const restHr = parseInt(document.getElementById('rest-hr').value) || 60;
+
+            const res = await fetch('/api/zones/config', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    ftp,
+                    max_hr: maxHr,
+                    rest_hr: restHr,
+                    power_zones: powerZones,
+                    hr_zones: hrZones,
+                }),
+            });
+
+            if (res.ok) {
+                const toast = document.getElementById('toast');
+                toast.style.display = 'block';
+                setTimeout(() => toast.style.display = 'none', 3000);
+            }
+        }
+
+        loadZones();
+    </script>
+</body>
+</html>

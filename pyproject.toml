@@ -1,0 +1,29 @@
+[project]
+name = "strava-analyzer"
+version = "0.1.0"
+description = "Personal Strava training data analyzer"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi==0.115.12",
+    "uvicorn==0.34.2",
+    "httpx==0.28.1",
+    "pandas==3.0.3",
+    "numpy==2.5.1",
+    "python-dotenv==1.1.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest==8.3.5",
+    "ruff==0.9.7",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

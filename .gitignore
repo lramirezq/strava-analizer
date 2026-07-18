@@ -1,0 +1,52 @@
+# 3HTP Framework (local to each developer)
+.kiro/
+
+# Environment and secrets
+.env
+.env.local
+.env.production
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.venv/
+venv/
+env/
+*.egg-info/
+dist/
+build/
+
+# SQLite
+*.db
+*.sqlite3
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Strava tokens (sensitive)
+tokens.json
+
+# PyInstaller
+*.spec.bak
+
+# Ruff cache
+.ruff_cache/
+
+# Pytest
+.pytest_cache/
+
+# App icon source
+app_icon.icns
+
+# macOS app bundle in project dir
+Strava Analyzer.app/

@@ -1,0 +1,93 @@
+{
+  "ftp": 194,
+  "max_hr": 176,
+  "rest_hr": 60,
+  "power_zones": [
+    {
+      "color": "#3d8bfd",
+      "name": "Z1 Recuperación Activa",
+      "min": 0,
+      "max": 107
+    },
+    {
+      "color": "#3fb950",
+      "name": "Z2 Endurance",
+      "min": 108,
+      "max": 146
+    },
+    {
+      "color": "#d29922",
+      "name": "Z3 Tempo",
+      "min": 147,
+      "max": 169
+    },
+    {
+      "color": "#e09b13",
+      "name": "Z3 Sweet Spot",
+      "min": 170,
+      "max": 182
+    },
+    {
+      "color": "#f0883e",
+      "name": "Z4 Umbral - FTP",
+      "min": 183,
+      "max": 204
+    },
+    {
+      "color": "#f85149",
+      "name": "Z5 VO2 MAX",
+      "min": 205,
+      "max": 233
+    },
+    {
+      "color": "#da3633",
+      "name": "Z6 Capacidad Anaeróbica",
+      "min": 234,
+      "max": 291
+    },
+    {
+      "color": "#b62324",
+      "name": "Z7 Anaerobic Power",
+      "min": 292,
+      "max": 388
+    },
+    {
+      "color": "#8b1a1a",
+      "name": "Z8 Neuromuscular",
+      "min": 389,
+      "max": 582
+    }
+  ],
+  "hr_zones": [
+    {
+      "color": "#3d8bfd",
+      "name": "Z1 Recovery",
+      "min": 0,
+      "max": 130
+    },
+    {
+      "color": "#3fb950",
+      "name": "Z2 Endurance",
+      "min": 131,
+      "max": 141
+    },
+    {
+      "color": "#d29922",
+      "name": "Z3 Tempo",
+      "min": 142,
+      "max": 153
+    },
+    {
+      "color": "#f0883e",
+      "name": "Z4 Threshold",
+      "min": 154,
+      "max": 164
+    },
+    {
+      "color": "#f85149",
+      "name": "Z5 VO2max",
+      "min": 165,
+      "max": 176
+    }
+  ]
+}

@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🚴 All Activities</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0f1117; color: #e1e4e8; padding: 20px; }
+        a { color: #58a6ff; text-decoration: none; }
+        a:hover { text-decoration: underline; }
+        .header { display: flex; align-items: baseline; gap: 16px; margin-bottom: 16px; }
+        h1 { font-size: 1.5rem; }
+        .back { margin-bottom: 16px; display: inline-block; font-size: 0.9rem; }
+        .filters { display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; align-items: center; }
+        .filters select, .filters input { background: #161b22; border: 1px solid #30363d; color: #e1e4e8; padding: 6px 12px; border-radius: 6px; font-size: 0.85rem; }
+        .filters label { font-size: 0.8rem; color: #8b949e; }
+        .count { font-size: 0.85rem; color: #8b949e; margin-bottom: 12px; }
+        table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+        th, td { padding: 8px 10px; text-align: left; border-bottom: 1px solid #21262d; white-space: nowrap; }
+        th { color: #8b949e; font-weight: 600; cursor: pointer; user-select: none; position: sticky; top: 0; background: #0f1117; }
+        th:hover { color: #e1e4e8; }
+        th .arrow { font-size: 0.7rem; margin-left: 4px; }
+        tr:hover { background: #161b22; }
+        tr { cursor: pointer; }
+        .high-effort { color: #f85149; font-weight: bold; }
+        .med-effort { color: #d29922; }
+        .badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 0.7rem; }
+        .badge-Ride { background: #1f3d2a; color: #3fb950; }
+        .badge-VirtualRide { background: #1f2a3d; color: #58a6ff; }
+        .badge-Run { background: #3d2a1f; color: #d29922; }
+        .badge-WeightTraining { background: #2a1f3d; color: #b87fff; }
+        .badge-other { background: #30363d; color: #8b949e; }
+        .table-container { overflow-x: auto; }
+        .recovery { font-size: 0.75rem; color: #8b949e; }
+    </style>
+</head>
+<body>
+    <a href="/" class="back">← Dashboard</a>
+    <div class="header">
+        <h1>🚴 All Activities</h1>
+    </div>
+
+    <div class="filters">
+        <div>
+            <label>Type</label><br>
+            <select id="filter-type" onchange="applyFilters()">
+                <option value="">All</option>
+                <option value="Ride">Ride</option>
+                <option value="VirtualRide">Virtual Ride</option>
+                <option value="Run">Run</option>
+                <option value="WeightTraining">Weight Training</option>
+            </select>
+        </div>
+        <div>
+            <label>Min Distance (km)</label><br>
+            <input type="number" id="filter-min-km" placeholder="0" onchange="applyFilters()">
+        </div>
+        <div>
+            <label>Min Effort</label><br>
+            <input type="number" id="filter-min-effort" placeholder="0" onchange="applyFilters()">
+        </div>
+        <div>
+            <label>From</label><br>
+            <input type="date" id="filter-from" onchange="applyFilters()">
+        </div>
+        <div>
+            <label>To</label><br>
+            <input type="date" id="filter-to" onchange="applyFilters()">
+        </div>
+    </div>
+
+    <div class="count" id="count"></div>
+
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th data-col="date" onclick="sortBy('date')">Date <span class="arrow" id="arrow-date">▼</span></th>
+                    <th data-col="name" onclick="sortBy('name')">Name <span class="arrow" id="arrow-name"></span></th>
+                    <th data-col="type" onclick="sortBy('type')">Type <span class="arrow" id="arrow-type"></span></th>
+                    <th data-col="distance_km" onclick="sortBy('distance_km')">Dist <span class="arrow" id="arrow-distance_km"></span></th>
+                    <th data-col="elevation" onclick="sortBy('elevation')">Elev <span class="arrow" id="arrow-elevation"></span></th>
+                    <th data-col="moving_time_h" onclick="sortBy('moving_time_h')">Time <span class="arrow" id="arrow-moving_time_h"></span></th>
+                    <th data-col="avg_speed_kph" onclick="sortBy('avg_speed_kph')">Speed <span class="arrow" id="arrow-avg_speed_kph"></span></th>
+                    <th data-col="avg_hr" onclick="sortBy('avg_hr')">HR <span class="arrow" id="arrow-avg_hr"></span></th>
+                    <th data-col="avg_watts" onclick="sortBy('avg_watts')">Watts <span class="arrow" id="arrow-avg_watts"></span></th>
+                    <th data-col="suffer_score" onclick="sortBy('suffer_score')">Effort <span class="arrow" id="arrow-suffer_score"></span></th>
+                    <th data-col="recovery" onclick="sortBy('recovery')">Recovery <span class="arrow" id="arrow-recovery"></span></th>
+                </tr>
+            </thead>
+            <tbody id="tbody"></tbody>
+        </table>
+    </div>
+
+    <script>
+        let allActivities = [];
+        let filteredActivities = [];
+        let currentSort = { col: 'date', dir: 'desc' };
+
+        function formatTime(hours) {
+            if (!hours) return '-';
+            const h = Math.floor(hours);
+            const m = Math.round((hours - h) * 60);
+            return `${h}h${m.toString().padStart(2, '0')}m`;
+        }
+
+        function estimateRecovery(effort) {
+            if (!effort) return { days: '-', label: '-', cls: '' };
+            if (effort >= 700) return { days: '14-18', label: '14-18d', cls: 'high-effort' };
+            if (effort >= 500) return { days: '10-14', label: '10-14d', cls: 'high-effort' };
+            if (effort >= 300) return { days: '4-7', label: '4-7d', cls: 'med-effort' };
+            if (effort >= 150) return { days: '2-3', label: '2-3d', cls: '' };
+            return { days: '1', label: '1d', cls: '' };
+        }
+
+        function badgeClass(type) {
+            const map = { Ride: 'badge-Ride', VirtualRide: 'badge-VirtualRide', Run: 'badge-Run', WeightTraining: 'badge-WeightTraining' };
+            return map[type] || 'badge-other';
+        }
+
+        async function loadActivities() {
+            const res = await fetch('/api/activities/all');
+            allActivities = await res.json();
+            applyFilters();
+        }
+
+        function applyFilters() {
+            const type = document.getElementById('filter-type').value;
+            const minKm = parseFloat(document.getElementById('filter-min-km').value) || 0;
+            const minEffort = parseFloat(document.getElementById('filter-min-effort').value) || 0;
+            const from = document.getElementById('filter-from').value;
+            const to = document.getElementById('filter-to').value;
+
+            filteredActivities = allActivities.filter(a => {
+                if (type && a.type !== type) return false;
+                if (a.distance_km < minKm) return false;
+                if ((a.suffer_score || 0) < minEffort) return false;
+                if (from && a.date < from) return false;
+                if (to && a.date > to) return false;
+                return true;
+            });
+
+            sortAndRender();
+        }
+
+        function sortBy(col) {
+            if (currentSort.col === col) {
+                currentSort.dir = currentSort.dir === 'desc' ? 'asc' : 'desc';
+            } else {
+                currentSort.col = col;
+                currentSort.dir = 'desc';
+            }
+            // Update arrows
+            document.querySelectorAll('.arrow').forEach(el => el.textContent = '');
+            const arrow = document.getElementById('arrow-' + col);
+            if (arrow) arrow.textContent = currentSort.dir === 'desc' ? '▼' : '▲';
+            sortAndRender();
+        }
+
+        function sortAndRender() {
+            const col = currentSort.col;
+            const dir = currentSort.dir === 'desc' ? -1 : 1;
+
+            filteredActivities.sort((a, b) => {
+                let va = col === 'recovery' ? (a.suffer_score || 0) : (a[col] ?? '');
+                let vb = col === 'recovery' ? (b.suffer_score || 0) : (b[col] ?? '');
+                if (va === null || va === undefined) va = '';
+                if (vb === null || vb === undefined) vb = '';
+                if (typeof va === 'number' && typeof vb === 'number') return (va - vb) * dir;
+                return String(va).localeCompare(String(vb)) * dir;
+            });
+
+            render();
+        }
+
+        function render() {
+            const tbody = document.getElementById('tbody');
+            document.getElementById('count').textContent = `${filteredActivities.length} activities`;
+
+            tbody.innerHTML = filteredActivities.map(a => {
+                const rec = estimateRecovery(a.suffer_score);
+                const effortCls = a.suffer_score >= 600 ? 'high-effort' : a.suffer_score >= 300 ? 'med-effort' : '';
+                return `<tr onclick="window.location='/activity?id=${a.id}'">
+                    <td>${a.date}</td>
+                    <td>${a.name}</td>
+                    <td><span class="badge ${badgeClass(a.type)}">${a.type}</span></td>
+                    <td>${a.distance_km}</td>
+                    <td>${a.elevation || '-'}</td>
+                    <td>${formatTime(a.moving_time_h)}</td>
+                    <td>${a.avg_speed_kph || '-'}</td>
+                    <td>${a.avg_hr || '-'}</td>
+                    <td>${a.avg_watts || '-'}</td>
+                    <td class="${effortCls}">${a.suffer_score || '-'}</td>
+                    <td class="${rec.cls}">${rec.label}</td>
+                </tr>`;
+            }).join('');
+        }
+
+        loadActivities();
+    </script>
+</body>
+</html>

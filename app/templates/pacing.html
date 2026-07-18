@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🚴 Pacing Calculator</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0f1117; color: #e1e4e8; padding: 20px; max-width: 900px; margin: 0 auto; }
+        a { color: #58a6ff; text-decoration: none; }
+        h1 { font-size: 1.5rem; margin-bottom: 8px; }
+        .back { margin-bottom: 16px; display: inline-block; font-size: 0.9rem; }
+        .subtitle { color: #8b949e; margin-bottom: 24px; }
+        .input-section { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 20px; margin-bottom: 24px; }
+        .input-row { display: flex; gap: 16px; flex-wrap: wrap; align-items: end; }
+        .input-group { flex: 1; min-width: 150px; }
+        .input-group label { display: block; font-size: 0.8rem; color: #8b949e; margin-bottom: 4px; }
+        .input-group input { width: 100%; background: #0d1117; border: 1px solid #30363d; color: #e1e4e8; padding: 10px 12px; border-radius: 6px; font-size: 1rem; }
+        .input-group input:focus { border-color: #58a6ff; outline: none; }
+        .btn { background: #238636; color: #fff; border: none; padding: 10px 24px; border-radius: 6px; cursor: pointer; font-size: 0.9rem; font-weight: 600; height: 42px; }
+        .btn:hover { background: #2ea043; }
+        .results { display: none; }
+        .section { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 20px; margin-bottom: 16px; }
+        .section h2 { font-size: 1rem; color: #8b949e; text-transform: uppercase; margin-bottom: 12px; font-weight: 600; }
+        .metric-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; }
+        .metric { text-align: center; }
+        .metric .value { font-size: 1.8rem; font-weight: bold; }
+        .metric .label { font-size: 0.75rem; color: #8b949e; margin-top: 2px; }
+        .green { color: #3fb950; }
+        .blue { color: #58a6ff; }
+        .orange { color: #d29922; }
+        .red { color: #f85149; }
+        .zone-rec { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+        .zone-pill { padding: 6px 14px; border-radius: 20px; font-size: 0.85rem; font-weight: 600; }
+        .zone-pill.z2 { background: #1f3d2a; color: #3fb950; }
+        .zone-pill.z3 { background: #3d3a1f; color: #d29922; }
+        .zone-pill.z4 { background: #3d1f1f; color: #f85149; }
+        .zone-pill.z1 { background: #1f2a3d; color: #58a6ff; }
+        .nutrition-list { list-style: none; }
+        .nutrition-list li { padding: 6px 0; border-bottom: 1px solid #21262d; display: flex; justify-content: space-between; }
+        .nutrition-list li:last-child { border: none; }
+        .nutrition-list .nl-label { color: #8b949e; }
+        .nutrition-list .nl-value { font-weight: 600; }
+        .recovery-badge { display: inline-block; padding: 8px 16px; border-radius: 8px; font-size: 1rem; font-weight: bold; margin-top: 8px; }
+        .comparison { margin-top: 16px; padding-top: 12px; border-top: 1px solid #30363d; font-size: 0.85rem; color: #8b949e; }
+        .comparison strong { color: #e1e4e8; }
+    </style>
+</head>
+<body>
+    <a href="/" class="back">← Dashboard</a>
+    <h1>🚴 Pacing Calculator</h1>
+    <p class="subtitle">Calcula el ritmo óptimo para tu próxima salida basado en tu fitness actual</p>
+
+    <div class="input-section">
+        <div class="input-row">
+            <div class="input-group">
+                <label>Distancia (km)</label>
+                <input type="number" id="distance" value="300" step="10">
+            </div>
+            <div class="input-group">
+                <label>Elevación (m)</label>
+                <input type="number" id="elevation" value="2500" step="100">
+            </div>
+            <button class="btn" onclick="calculate()">Calcular</button>
+        </div>
+    </div>
+
+    <div class="results" id="results">
+        <div class="section">
+            <h2>🎯 Target de Pacing</h2>
+            <div class="metric-grid">
+                <div class="metric"><div class="value green" id="r-hr">--</div><div class="label">HR Target (bpm)</div></div>
+                <div class="metric"><div class="value blue" id="r-watts">--</div><div class="label">Watts Target</div></div>
+                <div class="metric"><div class="value" id="r-speed">--</div><div class="label">Vel. estimada (km/h)</div></div>
+                <div class="metric"><div class="value" id="r-time">--</div><div class="label">Tiempo estimado</div></div>
+                <div class="metric"><div class="value orange" id="r-effort">--</div><div class="label">Effort estimado</div></div>
+                <div class="metric"><div class="value" id="r-if">--</div><div class="label">Intensity Factor</div></div>
+            </div>
+            <div class="comparison" id="r-comparison"></div>
+        </div>
+
+        <div class="section">
+            <h2>📊 Distribución de Zonas Recomendada</h2>
+            <div class="zone-rec" id="r-zones"></div>
+        </div>
+
+        <div class="section">
+            <h2>🍌 Nutrición</h2>
+            <ul class="nutrition-list" id="r-nutrition"></ul>
+        </div>
+
+        <div class="section">
+            <h2>🛌 Recuperación Estimada</h2>
+            <div id="r-recovery"></div>
+        </div>
+    </div>
+
+    <script>
+        // Pre-fill with brevet 300 target
+        async function calculate() {
+            const distance = document.getElementById('distance').value;
+            const elevation = document.getElementById('elevation').value;
+
+            const res = await fetch(`/api/pacing-calculator?distance_km=${distance}&elevation_m=${elevation}`);
+            const data = await res.json();
+
+            document.getElementById('results').style.display = 'block';
+
+            // Pacing
+            document.getElementById('r-hr').textContent = data.pacing.target_hr_range;
+            document.getElementById('r-watts').textContent = data.pacing.target_watts + 'W';
+            document.getElementById('r-speed').textContent = data.pacing.estimated_speed_kph;
+            const hours = data.pacing.estimated_time_h;
+            const h = Math.floor(hours);
+            const m = Math.round((hours - h) * 60);
+            document.getElementById('r-time').textContent = `${h}h${m.toString().padStart(2, '0')}m`;
+            document.getElementById('r-effort').textContent = data.pacing.estimated_effort;
+            document.getElementById('r-if').textContent = data.pacing.target_if.toFixed(2);
+
+            // Comparison
+            document.getElementById('r-comparison').innerHTML = `
+                Con tu CTL actual de <strong>${data.input.ctl}</strong> y FTP de <strong>${data.input.ftp}W</strong>.
+                Mantén HR en <strong>${data.pacing.target_hr_range} bpm</strong> — si sube de ${data.pacing.target_hr + 5}, estás yendo muy fuerte.
+            `;
+
+            // Zones
+            const zoneColors = { Z1: 'z1', Z2: 'z2', Z3: 'z3', Z4: 'z4' };
+            document.getElementById('r-zones').innerHTML = Object.entries(data.zones).map(([zone, pct]) =>
+                `<div class="zone-pill ${zoneColors[zone] || 'z2'}">${zone}: ${pct}</div>`
+            ).join('');
+
+            // Nutrition
+            document.getElementById('r-nutrition').innerHTML = `
+                <li><span class="nl-label">Carbohidratos por hora</span><span class="nl-value">${data.nutrition.carbs_per_hour_g}g/h</span></li>
+                <li><span class="nl-label">Total carbos estimado</span><span class="nl-value">${data.nutrition.total_carbs_g}g</span></li>
+                <li><span class="nl-label">Agua</span><span class="nl-value">${data.nutrition.water_liters} litros</span></li>
+                <li><span class="nl-label">Paradas cada</span><span class="nl-value">${data.nutrition.stop_every_km} km</span></li>
+                <li><span class="nl-label">Tip</span><span class="nl-value">Comer cada 30-45 min. No esperar a tener hambre.</span></li>
+            `;
+
+            // Recovery
+            const recColors = { easy: '#3fb950', moderate: '#3fb950', hard: '#d29922', extreme: '#f85149', overreach: '#f85149' };
+            const color = recColors[data.recovery.level] || '#8b949e';
+            document.getElementById('r-recovery').innerHTML = `
+                <div class="recovery-badge" style="background: ${color}22; color: ${color}; border: 1px solid ${color}">
+                    ${data.recovery.estimated_days} días de recuperación
+                </div>
+                <p style="margin-top:12px; font-size:0.85rem; color:#8b949e">
+                    ${data.recovery.level === 'overreach' ? '⚠️ Esto generaría overreach. Considera ir más lento o subir CTL antes.' :
+                      data.recovery.level === 'extreme' ? '⚠️ Esfuerzo muy alto. Asegúrate de llegar descansado (TSB +10 a +20).' :
+                      '✅ Recuperación manejable con este pacing.'}
+                </p>
+            `;
+        }
+
+        // Auto-calculate on load
+        calculate();
+    </script>
+</body>
+</html>

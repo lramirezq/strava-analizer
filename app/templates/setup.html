@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🚴 Strava Analyzer — Setup</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0f1117; color: #e1e4e8; display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+        .setup-card { background: #161b22; border: 1px solid #30363d; border-radius: 12px; padding: 40px; max-width: 500px; width: 100%; }
+        h1 { font-size: 1.5rem; margin-bottom: 8px; text-align: center; }
+        .subtitle { color: #8b949e; text-align: center; margin-bottom: 24px; font-size: 0.9rem; }
+        .form-group { margin-bottom: 16px; }
+        .form-group label { display: block; font-size: 0.85rem; color: #8b949e; margin-bottom: 4px; }
+        .form-group input { width: 100%; background: #0d1117; border: 1px solid #30363d; color: #e1e4e8; padding: 10px 12px; border-radius: 6px; font-size: 0.95rem; }
+        .form-group input:focus { border-color: #58a6ff; outline: none; }
+        .form-group small { color: #8b949e; font-size: 0.75rem; display: block; margin-top: 4px; }
+        .btn { width: 100%; background: #238636; color: #fff; border: none; padding: 12px; border-radius: 6px; cursor: pointer; font-size: 1rem; font-weight: 600; margin-top: 8px; }
+        .btn:hover { background: #2ea043; }
+        .btn:disabled { background: #30363d; color: #8b949e; cursor: wait; }
+        .help-link { text-align: center; margin-top: 16px; }
+        .help-link a { color: #58a6ff; font-size: 0.85rem; }
+        .error { color: #f85149; font-size: 0.85rem; margin-top: 8px; display: none; }
+        .success { color: #3fb950; font-size: 0.85rem; margin-top: 8px; display: none; text-align: center; }
+    </style>
+</head>
+<body>
+    <div class="setup-card">
+        <h1>🚴 Strava Analyzer</h1>
+        <p class="subtitle">Configuración inicial — conecta tu cuenta de Strava</p>
+
+        <div class="form-group">
+            <label>Client ID</label>
+            <input type="text" id="client-id" placeholder="Ej: 265929">
+            <small>Lo encuentras en <a href="https://www.strava.com/settings/api" target="_blank">strava.com/settings/api</a></small>
+        </div>
+
+        <div class="form-group">
+            <label>Client Secret</label>
+            <input type="password" id="client-secret" placeholder="Ej: 35bf91fc9ced...">
+        </div>
+
+        <div class="error" id="error"></div>
+        <div class="success" id="success">✅ Configuración guardada. Redirigiendo...</div>
+
+        <button class="btn" id="save-btn" onclick="saveConfig()">Guardar y conectar con Strava</button>
+
+        <div class="help-link">
+            <a href="https://www.strava.com/settings/api" target="_blank">¿No tienes una app? Créala aquí (2 min)</a>
+        </div>
+    </div>
+
+    <script>
+        async function saveConfig() {
+            const clientId = document.getElementById('client-id').value.trim();
+            const clientSecret = document.getElementById('client-secret').value.trim();
+            const errorEl = document.getElementById('error');
+            const successEl = document.getElementById('success');
+            const btn = document.getElementById('save-btn');
+
+            errorEl.style.display = 'none';
+            successEl.style.display = 'none';
+
+            if (!clientId || !clientSecret) {
+                errorEl.textContent = 'Ambos campos son requeridos.';
+                errorEl.style.display = 'block';
+                return;
+            }
+
+            btn.disabled = true;
+            btn.textContent = 'Guardando...';
+
+            try {
+                const res = await fetch('/api/setup', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ client_id: clientId, client_secret: clientSecret }),
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    successEl.style.display = 'block';
+                    // Redirect to auth flow
+                    setTimeout(() => { window.location.href = data.auth_url || '/'; }, 1500);
+                } else {
+                    errorEl.textContent = data.message || 'Error guardando configuración.';
+                    errorEl.style.display = 'block';
+                }
+            } catch (e) {
+                errorEl.textContent = 'Error de conexión.';
+                errorEl.style.display = 'block';
+            }
+            btn.disabled = false;
+            btn.textContent = 'Guardar y conectar con Strava';
+        }
+    </script>
+</body>
+</html>

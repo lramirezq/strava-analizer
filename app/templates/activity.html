@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🚴 Activity Detail</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0f1117; color: #e1e4e8; padding: 20px; }
+        a { color: #58a6ff; text-decoration: none; }
+        a:hover { text-decoration: underline; }
+        h1 { font-size: 1.5rem; margin-bottom: 4px; }
+        .back { margin-bottom: 16px; display: inline-block; font-size: 0.9rem; }
+        .meta { color: #8b949e; margin-bottom: 24px; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 24px; }
+        .card { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 14px; }
+        .card .label { font-size: 0.75rem; color: #8b949e; text-transform: uppercase; margin-bottom: 4px; }
+        .card .value { font-size: 1.5rem; font-weight: bold; }
+        .card .unit { font-size: 0.8rem; color: #8b949e; }
+        .green { color: #3fb950; }
+        .red { color: #f85149; }
+        .orange { color: #d29922; }
+        .blue { color: #58a6ff; }
+        .section { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 16px; margin-bottom: 16px; }
+        .section h2 { font-size: 1rem; color: #8b949e; margin-bottom: 12px; }
+        .zone-bar { display: flex; height: 28px; border-radius: 4px; overflow: hidden; margin-bottom: 12px; }
+        .zone-bar div { display: flex; align-items: center; justify-content: center; font-size: 0.7rem; font-weight: bold; color: #fff; min-width: 2px; }
+        .z1 { background: #3d8bfd; }
+        .z2 { background: #3fb950; }
+        .z3 { background: #d29922; }
+        .z4 { background: #f0883e; }
+        .z5 { background: #f85149; }
+        .zone-table { width: 100%; font-size: 0.85rem; }
+        .zone-table tr { border-bottom: 1px solid #30363d; }
+        .zone-table td { padding: 6px 8px; }
+        .zone-table .zone-name { font-weight: 600; }
+        .zone-table .zone-time { text-align: right; font-weight: bold; }
+        .zone-table .zone-pct { text-align: right; color: #8b949e; width: 60px; }
+        .zone-legend { display: flex; gap: 12px; font-size: 0.8rem; color: #8b949e; flex-wrap: wrap; }
+        .zone-legend span { display: flex; align-items: center; gap: 4px; }
+        .zone-legend .dot { width: 10px; height: 10px; border-radius: 50%; }
+        .compare-section { margin-top: 24px; }
+        .recovery-card { display: flex; align-items: center; gap: 16px; margin-bottom: 16px; }
+        .recovery-emoji { font-size: 2rem; }
+        .recovery-info { flex: 1; }
+        .recovery-title { font-size: 1.1rem; font-weight: bold; margin-bottom: 4px; }
+        .recovery-detail { font-size: 0.85rem; color: #8b949e; }
+        .recovery-timeline { margin-top: 12px; }
+        .recovery-timeline .day { display: flex; align-items: center; gap: 8px; padding: 4px 0; font-size: 0.85rem; }
+        .recovery-timeline .day-marker { width: 10px; height: 10px; border-radius: 50%; }
+        .recovery-timeline .day-label { color: #8b949e; width: 60px; }
+        .recovery-timeline .day-rec { flex: 1; }
+        #streamsChart { width: 100% !important; height: 250px !important; }
+        table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+        th, td { padding: 8px 12px; text-align: left; border-bottom: 1px solid #30363d; }
+        th { color: #8b949e; }
+        .highlight { background: #1c2128; }
+    </style>
+</head>
+<body>
+    <a href="/" class="back">← Dashboard</a>
+    <h1 id="activity-name">Loading...</h1>
+    <p class="meta" id="activity-meta"></p>
+
+    <div class="grid" id="stats-grid"></div>
+
+    <div class="section" id="streams-section" style="display:none">
+        <h2>HR & Power</h2>
+        <canvas id="streamsChart"></canvas>
+    </div>
+
+    <div class="section" id="recovery-section" style="display:none">
+        <h2>Proyección de Recuperación</h2>
+        <div id="recovery-content"></div>
+    </div>
+
+    <div class="section" id="hr-zones-section">
+        <h2>HR Zones</h2>
+        <div class="zone-bar" id="hr-zone-bar"></div>
+        <div id="hr-zone-table"></div>
+    </div>
+
+    <div class="section" id="power-zones-section" style="display:none">
+        <h2>Power Zones</h2>
+        <div class="zone-bar" id="power-zone-bar"></div>
+        <div id="power-zone-table"></div>
+    </div>
+
+    <div class="section compare-section">
+        <h2>Similar Activities (same type, comparable distance/elevation)</h2>
+        <table id="similar-table">
+            <thead>
+                <tr><th>Date</th><th>Name</th><th>Dist</th><th>Elev</th><th>Time</th><th>Avg HR</th><th>Watts</th><th>Effort</th></tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </div>
+
+    <script>
+        const params = new URLSearchParams(window.location.search);
+        const activityId = params.get('id');
+
+        const zoneColors = ['z1', 'z2', 'z3', 'z4', 'z5'];
+
+        function formatTime(hours) {
+            const h = Math.floor(hours);
+            const m = Math.round((hours - h) * 60);
+            return `${h}h${m.toString().padStart(2, '0')}m`;
+        }
+
+        function renderZones(zones, type, barId, tableId, sectionId) {
+            const data = zones[type];
+            if (!data || data.length === 0) {
+                document.getElementById(sectionId).style.display = 'none';
+                return;
+            }
+            document.getElementById(sectionId).style.display = 'block';
+
+            const totalTime = data.reduce((sum, z) => sum + z.time_seconds, 0);
+            const bar = document.getElementById(barId);
+            const tableDiv = document.getElementById(tableId);
+
+            // Render bar
+            bar.innerHTML = data.map((z, i) => {
+                const pct = (z.time_seconds / totalTime * 100);
+                if (pct < 1) return '';
+                const cls = zoneColors[i] || 'z5';
+                return `<div class="${cls}" style="width:${pct}%">${pct >= 8 ? z.time_display : ''}</div>`;
+            }).join('');
+
+            // Render table
+            tableDiv.innerHTML = '<table class="zone-table"><tbody>' + data.map((z, i) => {
+                const pct = (z.time_seconds / totalTime * 100).toFixed(1);
+                const cls = zoneColors[i] || 'z5';
+                const range = z.max_val ? `${z.min_val}-${z.max_val}` : `${z.min_val}+`;
+                const unit = type === 'heartrate' ? 'bpm' : 'W';
+                return `<tr>
+                    <td><span class="${cls}" style="display:inline-block;width:10px;height:10px;border-radius:50%;"></span></td>
+                    <td class="zone-name">${z.label}</td>
+                    <td style="color:#8b949e">${range} ${unit}</td>
+                    <td class="zone-time">${z.time_display}</td>
+                    <td class="zone-pct">${pct}%</td>
+                </tr>`;
+            }).join('') + '</tbody></table>';
+        }
+
+        async function loadActivity() {
+            const res = await fetch(`/api/activity/${activityId}`);
+            if (!res.ok) { document.getElementById('activity-name').textContent = 'Activity not found'; return; }
+            const a = await res.json();
+
+            document.title = `🚴 ${a.name}`;
+            document.getElementById('activity-name').textContent = a.name;
+            document.getElementById('activity-meta').textContent = `${a.date} • ${a.type}${a.sport_type ? ' (' + a.sport_type + ')' : ''}`;
+
+            const stats = [
+                { label: 'Distance', value: a.distance_km, unit: 'km', color: '' },
+                { label: 'Elevation', value: a.elevation, unit: 'm', color: '' },
+                { label: 'Moving Time', value: formatTime(a.moving_time_h), unit: '', color: '' },
+                { label: 'Avg Speed', value: a.avg_speed_kph, unit: 'km/h', color: '' },
+                { label: 'Avg Power', value: a.avg_watts, unit: 'W', color: 'blue' },
+                { label: 'Avg HR', value: a.avg_hr, unit: 'bpm', color: a.avg_hr > 155 ? 'red' : a.avg_hr > 140 ? 'orange' : 'green' },
+                { label: 'Max HR', value: a.max_hr, unit: 'bpm', color: 'red' },
+                { label: 'Relative Effort', value: a.suffer_score, unit: '', color: a.suffer_score >= 600 ? 'red' : a.suffer_score >= 300 ? 'orange' : 'green' },
+                { label: 'Energy', value: a.kilojoules, unit: 'kJ', color: '' },
+                { label: 'Elapsed Time', value: formatTime(a.elapsed_time_h), unit: '', color: '' },
+            ];
+
+            const grid = document.getElementById('stats-grid');
+            grid.innerHTML = stats.filter(s => s.value != null).map(s => `
+                <div class="card">
+                    <div class="label">${s.label}</div>
+                    <div class="value ${s.color}">${s.value} <span class="unit">${s.unit}</span></div>
+                </div>
+            `).join('');
+
+            // HR zone indicator - fetch real data from Strava
+            loadZones();
+
+            // Streams chart (HR + Power over time/distance)
+            loadStreams();
+
+            // Recovery projection
+            renderRecovery(a);
+
+            // Load similar activities
+            loadSimilar(a);
+        }
+
+        function renderRecovery(activity) {
+            const effort = activity.suffer_score;
+            if (!effort) return;
+
+            const section = document.getElementById('recovery-section');
+            section.style.display = 'block';
+
+            let days, emoji, color, title, timeline;
+
+            if (effort >= 700) {
+                days = 14; emoji = '🔴🔴🔴'; color = '#f85149';
+                title = `Overreach — recuperación de ${days}-18 días`;
+                timeline = [
+                    { day: 'Día 1-3', color: '#f85149', text: 'Descanso total. Posibles mareos, fatiga extrema.' },
+                    { day: 'Día 4-7', color: '#f85149', text: 'Solo caminata o Z1 máx 30min. Hidratación + electrolitos.' },
+                    { day: 'Día 8-10', color: '#d29922', text: 'Z1-Z2 suave, máx 1 hora. Evaluar sensaciones.' },
+                    { day: 'Día 11-14', color: '#d29922', text: 'Z2 libre. Z3 solo si no hay fatiga residual.' },
+                    { day: 'Día 14+', color: '#3fb950', text: 'Entreno normal. Z4 si TSB > +5.' },
+                ];
+            } else if (effort >= 500) {
+                days = 10; emoji = '🔴'; color = '#f85149';
+                title = `Esfuerzo extremo — recuperación de ${days}-14 días`;
+                timeline = [
+                    { day: 'Día 1-2', color: '#f85149', text: 'Descanso total o caminata ligera.' },
+                    { day: 'Día 3-5', color: '#d29922', text: 'Z1-Z2 máx 45min. Spinning suave.' },
+                    { day: 'Día 6-8', color: '#d29922', text: 'Z2 libre, hasta 1.5h.' },
+                    { day: 'Día 9-10', color: '#3fb950', text: 'Z2-Z3. Puede incluir algo de tempo.' },
+                    { day: 'Día 10+', color: '#3fb950', text: 'Entreno normal con Z4.' },
+                ];
+            } else if (effort >= 300) {
+                days = 5; emoji = '🟡'; color = '#d29922';
+                title = `Fondo exigente — recuperación de ${days}-7 días`;
+                timeline = [
+                    { day: 'Día 1', color: '#d29922', text: 'Descanso o Z1 30min (activación).' },
+                    { day: 'Día 2-3', color: '#d29922', text: 'Z2 libre, hasta 1h.' },
+                    { day: 'Día 4-5', color: '#3fb950', text: 'Z2-Z3 normal.' },
+                    { day: 'Día 5+', color: '#3fb950', text: 'Entreno completo, Z4 OK.' },
+                ];
+            } else if (effort >= 150) {
+                days = 2; emoji = '🟢'; color = '#3fb950';
+                title = `Fondo moderado — recuperación de ${days}-3 días`;
+                timeline = [
+                    { day: 'Día 1', color: '#3fb950', text: 'Descanso o Z1 suave.' },
+                    { day: 'Día 2', color: '#3fb950', text: 'Z2 libre.' },
+                    { day: 'Día 3', color: '#3fb950', text: 'Entreno normal.' },
+                ];
+            } else {
+                days = 1; emoji = '🟢'; color = '#3fb950';
+                title = `Entreno normal — recuperación 1 día`;
+                timeline = [
+                    { day: 'Día 1', color: '#3fb950', text: 'Puedes entrenar al día siguiente.' },
+                ];
+            }
+
+            const content = document.getElementById('recovery-content');
+            content.innerHTML = `
+                <div class="recovery-card">
+                    <div class="recovery-emoji">${emoji}</div>
+                    <div class="recovery-info">
+                        <div class="recovery-title" style="color:${color}">${title}</div>
+                        <div class="recovery-detail">Basado en effort ${effort} | Duración ${formatTime(activity.moving_time_h)} | HR avg ${activity.avg_hr || '-'} bpm</div>
+                    </div>
+                </div>
+                <div class="recovery-timeline">
+                    ${timeline.map(t => `
+                        <div class="day">
+                            <div class="day-marker" style="background:${t.color}"></div>
+                            <div class="day-label">${t.day}</div>
+                            <div class="day-rec">${t.text}</div>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        }
+
+        async function loadZones() {
+            const res = await fetch(`/api/activity/${activityId}/zones`);
+            if (!res.ok) return;
+            const zones = await res.json();
+            renderZones(zones, 'heartrate', 'hr-zone-bar', 'hr-zone-table', 'hr-zones-section');
+            renderZones(zones, 'power', 'power-zone-bar', 'power-zone-table', 'power-zones-section');
+        }
+
+        async function loadStreams() {
+            const res = await fetch(`/api/activity/${activityId}/streams`);
+            if (!res.ok) return;
+            const streams = await res.json();
+
+            const hasHR = streams.heartrate && streams.heartrate.length > 0;
+            const hasPower = streams.watts && streams.watts.length > 0;
+            if (!hasHR && !hasPower) return;
+
+            document.getElementById('streams-section').style.display = 'block';
+
+            const labels = streams.distance_km.length > 0
+                ? streams.distance_km.map(d => d + ' km')
+                : streams.time_min.map(t => {
+                    const h = Math.floor(t / 60);
+                    const m = Math.round(t % 60);
+                    return h > 0 ? `${h}h${m.toString().padStart(2,'0')}` : `${m}m`;
+                });
+
+            const datasets = [];
+
+            if (hasHR) {
+                datasets.push({
+                    label: 'HR (bpm)',
+                    data: streams.heartrate,
+                    borderColor: '#f85149',
+                    backgroundColor: 'rgba(248,81,73,0.1)',
+                    borderWidth: 1.5,
+                    pointRadius: 0,
+                    fill: true,
+                    yAxisID: 'y',
+                });
+            }
+
+            if (hasPower) {
+                datasets.push({
+                    label: 'Power (W)',
+                    data: streams.watts,
+                    borderColor: '#58a6ff',
+                    backgroundColor: 'rgba(88,166,255,0.05)',
+                    borderWidth: 1.5,
+                    pointRadius: 0,
+                    fill: true,
+                    yAxisID: hasPower && hasHR ? 'y1' : 'y',
+                });
+            }
+
+            const scales = {
+                x: {
+                    ticks: { color: '#8b949e', maxTicksLimit: 10 },
+                    grid: { color: '#21262d' },
+                },
+                y: {
+                    position: 'left',
+                    title: { display: true, text: hasHR ? 'HR (bpm)' : 'Power (W)', color: '#8b949e' },
+                    ticks: { color: hasHR ? '#f85149' : '#58a6ff' },
+                    grid: { color: '#21262d' },
+                },
+            };
+
+            if (hasHR && hasPower) {
+                scales.y1 = {
+                    position: 'right',
+                    title: { display: true, text: 'Power (W)', color: '#8b949e' },
+                    ticks: { color: '#58a6ff' },
+                    grid: { display: false },
+                };
+            }
+
+            const ctx = document.getElementById('streamsChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'line',
+                data: { labels, datasets },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    scales,
+                    plugins: {
+                        legend: { labels: { color: '#e1e4e8' } },
+                    },
+                },
+            });
+        }
+
+        async function loadSimilar(activity) {
+            const res = await fetch(`/api/activities/similar/${activityId}`);
+            if (!res.ok) return;
+            const similar = await res.json();
+
+            const tbody = document.querySelector('#similar-table tbody');
+            if (similar.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="8" style="color:#8b949e">No similar activities found</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = similar.map(a => `
+                <tr class="${a.id == activityId ? 'highlight' : ''}" onclick="window.location='/activity?id=${a.id}'" style="cursor:pointer">
+                    <td>${a.date}</td>
+                    <td>${a.name}</td>
+                    <td>${a.distance_km} km</td>
+                    <td>${a.elevation || '-'} m</td>
+                    <td>${formatTime(a.moving_time_h)}</td>
+                    <td>${a.avg_hr || '-'}</td>
+                    <td>${a.avg_watts || '-'}</td>
+                    <td style="color: ${a.suffer_score >= 600 ? '#f85149' : a.suffer_score >= 300 ? '#d29922' : '#3fb950'}">${a.suffer_score || '-'}</td>
+                </tr>
+            `).join('');
+        }
+
+        if (activityId) loadActivity();
+        else document.getElementById('activity-name').textContent = 'No activity ID provided';
+    </script>
+</body>
+</html>

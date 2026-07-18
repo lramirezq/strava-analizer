@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🚴 Training Analyzer</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0f1117; color: #e1e4e8; padding: 20px; }
+        h1 { font-size: 1.8rem; margin-bottom: 8px; }
+        h2 { font-size: 1.2rem; color: #8b949e; margin: 24px 0 12px; }
+        .header { display: flex; align-items: baseline; gap: 16px; margin-bottom: 24px; }
+        .header small { color: #8b949e; }
+        .header button { margin-left: auto; background: #238636; color: #fff; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 0.85rem; font-weight: 600; }
+        .header button:hover { background: #2ea043; }
+        .header button:disabled { background: #30363d; color: #8b949e; cursor: wait; }
+        .projected-note { font-size: 0.8rem; color: #8b949e; margin-top: 8px; }
+        .projected-note span { color: #d29922; }
+        .readiness-card { background: #161b22; border: 2px solid #30363d; border-radius: 12px; padding: 20px; margin-bottom: 24px; display: flex; align-items: center; gap: 20px; }
+        .readiness-emoji { font-size: 2.5rem; }
+        .readiness-content { flex: 1; }
+        .readiness-title { font-size: 1.3rem; font-weight: bold; margin-bottom: 4px; }
+        .readiness-message { font-size: 0.9rem; color: #8b949e; margin-bottom: 6px; }
+        .readiness-rec { font-size: 0.85rem; padding: 6px 12px; border-radius: 6px; background: #0d1117; display: inline-block; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; margin-bottom: 24px; }
+        .card { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 16px; }
+        .card h3 { font-size: 0.85rem; color: #8b949e; text-transform: uppercase; margin-bottom: 8px; }
+        .stat-sub { font-size: 0.8rem; color: #8b949e; margin-top: 4px; }
+        .stat-sub .proj-value { color: #d29922; font-weight: 600; }
+        .stat { font-size: 2rem; font-weight: bold; }
+        .stat.green { color: #3fb950; }
+        .stat.red { color: #f85149; }
+        .stat.orange { color: #d29922; }
+        .stat.blue { color: #58a6ff; }
+        .chart-container { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 16px; margin-bottom: 24px; position: relative; }
+        .chart-container canvas { width: 100% !important; height: 300px !important; }
+        table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+        th, td { padding: 8px 12px; text-align: left; border-bottom: 1px solid #30363d; }
+        th { color: #8b949e; font-weight: 600; }
+        tr:hover { background: #1c2128; }
+        .high-effort { color: #f85149; font-weight: bold; }
+        .badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 0.75rem; }
+        .badge-ride { background: #1f3d2a; color: #3fb950; }
+        .badge-run { background: #3d2a1f; color: #d29922; }
+        .badge-weight { background: #1f2a3d; color: #58a6ff; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🚴 Training Analyzer</h1>
+        <small>Luis R. | FTP: 197W</small>
+        <a href="/pacing" style="font-size:0.85rem; margin-left:16px;">📐 Pacing Calculator</a>
+        <a href="/zones" style="font-size:0.85rem; margin-left:16px;">⚙️ Zonas</a>
+        <button id="sync-btn" onclick="doSync()">🔄 Sync Strava</button>
+    </div>
+
+    <div id="readiness-card" class="readiness-card">
+        <div class="readiness-emoji" id="readiness-emoji">⏳</div>
+        <div class="readiness-content">
+            <div class="readiness-title" id="readiness-title">Calculando...</div>
+            <div class="readiness-message" id="readiness-message"></div>
+            <div class="readiness-rec" id="readiness-rec"></div>
+        </div>
+    </div>
+
+    <div class="grid" id="stats-grid">
+        <div class="card"><h3>Fitness (CTL)</h3><div class="stat blue" id="ctl">--</div><div class="stat-sub" id="ctl-proj"></div></div>
+        <div class="card"><h3>Fatigue (ATL)</h3><div class="stat orange" id="atl">--</div><div class="stat-sub" id="atl-proj"></div></div>
+        <div class="card"><h3>Form (TSB)</h3><div class="stat" id="tsb">--</div><div class="stat-sub" id="tsb-proj"></div></div>
+        <div class="card"><h3>Total Activities</h3><div class="stat" id="total">--</div></div>
+    </div>
+
+    <div class="chart-container">
+        <h2>Fitness / Fatigue / Form (CTL / ATL / TSB)</h2>
+        <canvas id="loadChart"></canvas>
+    </div>
+
+    <div class="chart-container">
+        <h2>Weekly TSS</h2>
+        <canvas id="weeklyChart"></canvas>
+    </div>
+
+    <div class="chart-container">
+        <h2>Top Efforts (Rides) <a href="/activities" style="font-size:0.8rem; float:right; color:#58a6ff;">Ver todas →</a></h2>
+        <table id="activities-table">
+            <thead>
+                <tr><th>Date</th><th>Name</th><th>Dist</th><th>Elev</th><th>Time</th><th>Avg HR</th><th>Watts</th><th>Effort</th></tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </div>
+
+    <script>
+        const chartColors = {
+            ctl: '#58a6ff',
+            atl: '#d29922',
+            tsb: '#3fb950',
+            tss: 'rgba(139, 148, 158, 0.5)',
+        };
+
+        async function loadData() {
+            const [loadRes, weeklyRes, activitiesRes, readinessRes] = await Promise.all([
+                fetch('/api/training-load'),
+                fetch('/api/weekly-summary'),
+                fetch('/api/activities?limit=100&activity_type=Ride'),
+                fetch('/api/readiness'),
+            ]);
+            const load = await loadRes.json();
+            const weekly = await weeklyRes.json();
+            const activities = await activitiesRes.json();
+            const readiness = await readinessRes.json();
+
+            renderReadiness(readiness);
+            renderStats(load);
+            renderLoadChart(load);
+            renderWeeklyChart(weekly);
+            renderActivities(activities);
+        }
+
+        function renderReadiness(data) {
+            const card = document.getElementById('readiness-card');
+            card.style.borderColor = data.color;
+            document.getElementById('readiness-emoji').textContent = data.emoji;
+            document.getElementById('readiness-title').textContent = data.title;
+            document.getElementById('readiness-title').style.color = data.color;
+            document.getElementById('readiness-message').textContent = data.message;
+            const rec = document.getElementById('readiness-rec');
+            rec.textContent = '→ ' + data.recommendation;
+            rec.style.borderLeft = `3px solid ${data.color}`;
+            if (data.projected) {
+                document.getElementById('readiness-message').textContent += ` (proyectado desde ${data.last_sync_date})`;
+            }
+        }
+
+        function renderStats(load) {
+            // Find last real data point
+            let lastRealIdx = load.projected.lastIndexOf(false);
+            if (lastRealIdx === -1) lastRealIdx = 0;
+
+            // Find today's projected index
+            const today = new Date().toISOString().slice(0, 10);
+            let todayIdx = load.dates.indexOf(today);
+            if (todayIdx === -1) todayIdx = load.dates.length - 1;
+
+            // Show REAL values (last sync)
+            document.getElementById('ctl').textContent = load.ctl[lastRealIdx].toFixed(0);
+            document.getElementById('atl').textContent = load.atl[lastRealIdx].toFixed(0);
+            const tsbReal = load.tsb[lastRealIdx];
+            const tsbEl = document.getElementById('tsb');
+            tsbEl.textContent = (tsbReal >= 0 ? '+' : '') + tsbReal.toFixed(0);
+            tsbEl.className = 'stat ' + (tsbReal >= 0 ? 'green' : 'red');
+
+            // Show PROJECTED values (today, assuming rest)
+            if (todayIdx !== lastRealIdx && load.projected[todayIdx]) {
+                const projCtl = load.ctl[todayIdx].toFixed(0);
+                const projAtl = load.atl[todayIdx].toFixed(0);
+                const projTsb = load.tsb[todayIdx];
+                const projTsbStr = (projTsb >= 0 ? '+' : '') + projTsb.toFixed(0);
+
+                document.getElementById('ctl-proj').innerHTML = `Hoy (descanso): <span class="proj-value">${projCtl}</span>`;
+                document.getElementById('atl-proj').innerHTML = `Hoy (descanso): <span class="proj-value">${projAtl}</span>`;
+                document.getElementById('tsb-proj').innerHTML = `Hoy (descanso): <span class="proj-value">${projTsbStr}</span>`;
+            }
+
+            document.getElementById('total').textContent = (lastRealIdx + 1) + ' days';
+        }
+
+        function renderLoadChart(data) {
+            const ctx = document.getElementById('loadChart').getContext('2d');
+            // Show last 6 months
+            const n = Math.min(data.dates.length, 180);
+            const dates = data.dates.slice(-n);
+            const ctl = data.ctl.slice(-n);
+            const atl = data.atl.slice(-n);
+            const tsb = data.tsb.slice(-n);
+            const projected = data.projected.slice(-n);
+
+            // Find where projection starts
+            const projStart = projected.indexOf(true);
+
+            // Create segment styling for dashed projected lines
+            const segmentDash = (ctx) => {
+                const idx = ctx.p0DataIndex;
+                return projected[idx] ? [6, 3] : undefined;
+            };
+            const segmentOpacity = (ctx, baseColor) => {
+                const idx = ctx.p0DataIndex;
+                return projected[idx] ? baseColor.replace('1)', '0.5)') : baseColor;
+            };
+
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: dates,
+                    datasets: [
+                        {
+                            label: 'CTL (Fitness)', data: ctl,
+                            borderColor: chartColors.ctl, borderWidth: 2, pointRadius: 0, fill: false,
+                            segment: { borderDash: segmentDash }
+                        },
+                        {
+                            label: 'ATL (Fatigue)', data: atl,
+                            borderColor: chartColors.atl, borderWidth: 2, pointRadius: 0, fill: false,
+                            segment: { borderDash: segmentDash }
+                        },
+                        {
+                            label: 'TSB (Form)', data: tsb,
+                            borderColor: chartColors.tsb, borderWidth: 1.5, pointRadius: 0,
+                            fill: true, backgroundColor: 'rgba(63,185,80,0.1)',
+                            segment: { borderDash: segmentDash }
+                        },
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    scales: {
+                        x: { ticks: { color: '#8b949e', maxTicksLimit: 12 }, grid: { color: '#21262d' } },
+                        y: { ticks: { color: '#8b949e' }, grid: { color: '#21262d' } }
+                    },
+                    plugins: {
+                        legend: { labels: { color: '#e1e4e8' } },
+                        annotation: projStart > -1 ? {
+                            annotations: { projLine: { type: 'line', xMin: projStart, xMax: projStart, borderColor: '#d29922', borderWidth: 1, borderDash: [4, 4], label: { display: true, content: 'Proyección', color: '#d29922', font: { size: 10 } } } }
+                        } : {}
+                    }
+                }
+            });
+        }
+
+        function renderWeeklyChart(data) {
+            const ctx = document.getElementById('weeklyChart').getContext('2d');
+            const n = Math.min(data.weeks.length, 26);
+            const weeks = data.weeks.slice(-n);
+            const tss = data.tss.slice(-n);
+
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: weeks,
+                    datasets: [{ label: 'Weekly TSS', data: tss, backgroundColor: 'rgba(88,166,255,0.6)', borderColor: '#58a6ff', borderWidth: 1 }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: { ticks: { color: '#8b949e', maxRotation: 45 }, grid: { display: false } },
+                        y: { ticks: { color: '#8b949e' }, grid: { color: '#21262d' } }
+                    },
+                    plugins: { legend: { display: false } }
+                }
+            });
+        }
+
+        function renderActivities(activities) {
+            const tbody = document.querySelector('#activities-table tbody');
+            // Sort by suffer_score desc
+            activities.sort((a, b) => (b.suffer_score || 0) - (a.suffer_score || 0));
+            const top = activities.slice(0, 20);
+
+            tbody.innerHTML = top.map(a => `
+                <tr onclick="window.location='/activity?id=${a.id}'" style="cursor:pointer">
+                    <td>${a.date}</td>
+                    <td>${a.name}</td>
+                    <td>${a.distance_km} km</td>
+                    <td>${a.elevation || '-'} m</td>
+                    <td>${a.moving_time_h}h</td>
+                    <td>${a.avg_hr || '-'}</td>
+                    <td>${a.avg_watts || '-'}</td>
+                    <td class="${a.suffer_score >= 600 ? 'high-effort' : ''}">${a.suffer_score || '-'}</td>
+                </tr>
+            `).join('');
+        }
+
+        async function doSync() {
+            const btn = document.getElementById('sync-btn');
+            btn.disabled = true;
+            btn.textContent = '⏳ Syncing...';
+            try {
+                const res = await fetch('/api/sync', { method: 'POST' });
+                const data = await res.json();
+                if (res.ok) {
+                    btn.textContent = '✅ Done!';
+                    setTimeout(() => location.reload(), 1000);
+                } else {
+                    btn.textContent = '❌ Error';
+                    alert(data.message || 'Sync failed');
+                    setTimeout(() => { btn.textContent = '🔄 Sync Strava'; btn.disabled = false; }, 3000);
+                }
+            } catch (e) {
+                btn.textContent = '❌ Error';
+                setTimeout(() => { btn.textContent = '🔄 Sync Strava'; btn.disabled = false; }, 3000);
+            }
+        }
+
+        loadData();
+    </script>
+</body>
+</html>
