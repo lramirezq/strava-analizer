@@ -4,6 +4,8 @@ Personal training analytics app that connects to Strava to download, organize, a
 
 ![Python](https://img.shields.io/badge/Python-3.11+-blue) ![FastAPI](https://img.shields.io/badge/FastAPI-0.115-green) ![License](https://img.shields.io/badge/License-MIT-yellow)
 
+🇪🇸 [Versión en español](README.es.md)
+
 ## Features
 
 - **📊 Training Load Dashboard** — CTL/ATL/TSB chart with rest-day projection
