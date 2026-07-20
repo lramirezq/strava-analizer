@@ -125,6 +125,24 @@ Navigate to `/zones` in the dashboard to configure your power and HR zones. Supp
 | TSB | Training Stress Balance — CTL minus ATL (form) |
 | TSS | Training Stress Score — intensity × duration |
 
+### How Metrics Are Calculated
+
+**TSS (Training Stress Score)** — measures how hard a workout was:
+
+- **With power meter:** `TSS = (duration_s × NP × IF) / (FTP × 3600) × 100` where NP is Normalized Power from Strava and IF = NP/FTP
+- **Without power meter (HR-based):** Uses heart rate reserve as intensity proxy: `TSS = duration_h × intensity² × 100` where `intensity = ((avg_hr - resting_hr) / (max_hr - resting_hr)) × 1.1`
+- **Fallback:** If no HR or power, uses Strava's Relative Effort × 0.5
+
+**CTL (Fitness)** — exponentially weighted moving average of daily TSS with a 42-day time constant. Higher CTL = more training absorbed = fitter.
+
+**ATL (Fatigue)** — exponentially weighted moving average of daily TSS with a 7-day time constant. Higher ATL = more recent fatigue.
+
+**TSB (Form)** — `CTL - ATL`. Positive = rested and ready. Negative = carrying fatigue. Sweet spot for performance: +5 to +25.
+
+**Rest-day projection** — when no new data is synced, the app projects CTL/ATL forward using exponential decay (assuming TSS=0 each day) to estimate your current state.
+
+> **Note:** These calculations are approximations, not identical to TrainingPeaks. The HR-based TSS may differ 10-20% from TrainingPeaks' hrTSS model. Trends and patterns are accurate; absolute numbers may vary slightly.
+
 ## Project Structure
 
 ```
