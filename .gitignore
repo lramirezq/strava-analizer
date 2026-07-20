@@ -50,3 +50,9 @@ app_icon.icns
 
 # macOS app bundle in project dir
 Strava Analyzer.app/
+
+# Tauri
+desktop/src-tauri/target/
+desktop/src-tauri/sidecar/
+desktop/node_modules/
+desktop/*.dmg

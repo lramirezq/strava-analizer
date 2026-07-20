@@ -1,0 +1,15 @@
+{
+  "name": "strava-analyzer-desktop",
+  "version": "1.0.0",
+  "description": "Strava Training Analyzer — Desktop App",
+  "private": true,
+  "scripts": {
+    "tauri": "tauri",
+    "build": "tauri build",
+    "dev": "tauri dev",
+    "build-sidecar": "cd .. && source .venv/bin/activate && pyinstaller strava_analyzer.spec --noconfirm && cp -R dist/StravaAnalyzer desktop/src-tauri/sidecar"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2"
+  }
+}
