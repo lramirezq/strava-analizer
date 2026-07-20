@@ -42,6 +42,21 @@ def main():
     """Start the Strava Analyzer app."""
     setup_environment()
 
+    # Kill anything on port 8050 before starting
+    import subprocess
+    subprocess.run(
+        ["lsof", "-ti", ":8050"],
+        capture_output=True,
+    ).stdout.decode().strip()
+    pids = subprocess.run(
+        ["lsof", "-ti", ":8050"],
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
+    if pids:
+        for pid in pids.split("\n"):
+            subprocess.run(["kill", "-9", pid.strip()], capture_output=True)
+
     # Ensure templates are findable
     if getattr(sys, "_MEIPASS", None):
         os.chdir(sys._MEIPASS)
