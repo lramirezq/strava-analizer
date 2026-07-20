@@ -33,43 +33,59 @@ def startup():
 @app.post("/api/sync")
 def api_sync():
     """Trigger a re-sync of activities from Strava."""
-    import subprocess
-    import sys
+    from app.db import get_activity_count, get_latest_activity_timestamp, init_db, upsert_activity
+    from app.strava_client import StravaAuthError, fetch_activities
+    from datetime import datetime
+    import time
 
-    result = subprocess.run(
-        [sys.executable, "-m", "app.sync"],
-        capture_output=True,
-        text=True,
-        cwd=str(__import__("pathlib").Path(__file__).resolve().parent.parent),
-        timeout=300,
-    )
-    if result.returncode != 0:
-        return JSONResponse(
-            {"status": "error", "message": "Sync failed. Check server logs."},
-            status_code=500,
-        )
-    # Extract new/total counts from output
-    output = result.stdout.strip()
-    new_count = 0
-    total_count = 0
-    for line in output.split("\n"):
-        if "New activities:" in line:
-            try:
-                new_count = int(line.split(":")[-1].strip())
-            except ValueError:
-                pass
-        if "Total in database:" in line:
-            try:
-                total_count = int(line.split(":")[-1].strip())
-            except ValueError:
-                pass
+    init_db()
+    total_before = get_activity_count()
+
+    latest = get_latest_activity_timestamp()
+    after_epoch = None
+    if latest:
+        dt = datetime.fromisoformat(latest)
+        after_epoch = int(dt.timestamp())
+
+    page = 1
+    total_synced = 0
+
+    while True:
+        try:
+            activities = fetch_activities(after=after_epoch, page=page)
+        except StravaAuthError:
+            return JSONResponse(
+                {"status": "error", "message": "Auth failed. Re-authenticate."},
+                status_code=401,
+            )
+        except RuntimeError as e:
+            return JSONResponse(
+                {"status": "error", "message": str(e)},
+                status_code=500,
+            )
+
+        if not activities:
+            break
+
+        for activity in activities:
+            upsert_activity(activity)
+            total_synced += 1
+
+        if len(activities) < 200:
+            break
+
+        page += 1
+        time.sleep(0.5)
+
+    total_after = get_activity_count()
+    new_count = total_after - total_before
 
     if new_count > 0:
-        msg = f"{new_count} actividades nuevas descargadas. Total: {total_count}"
+        msg = f"{new_count} actividades nuevas descargadas. Total: {total_after}"
     else:
-        msg = f"Todo al día. {total_count} actividades en total."
+        msg = f"Todo al día. {total_after} actividades en total."
 
-    return JSONResponse({"status": "ok", "message": msg, "new": new_count, "total": total_count})
+    return JSONResponse({"status": "ok", "message": msg, "new": new_count, "total": total_after})
 
 
 @app.get("/", response_class=HTMLResponse)
