@@ -15,6 +15,8 @@
         .header button { margin-left: auto; background: #238636; color: #fff; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 0.85rem; font-weight: 600; }
         .header button:hover { background: #2ea043; }
         .header button:disabled { background: #30363d; color: #8b949e; cursor: wait; }
+        .header .logout-btn { background: #30363d; margin-left: 0; }
+        .header .logout-btn:hover { background: #da3633; }
         .projected-note { font-size: 0.8rem; color: #8b949e; margin-top: 8px; }
         .projected-note span { color: #d29922; }
         .readiness-card { background: #161b22; border: 2px solid #30363d; border-radius: 12px; padding: 20px; margin-bottom: 24px; display: flex; align-items: center; gap: 20px; }
@@ -49,10 +51,12 @@
 <body>
     <div class="header">
         <h1>🚴 Training Analyzer</h1>
-        <small>Luis R. | FTP: 197W</small>
-        <a href="/pacing" style="font-size:0.85rem; margin-left:16px;">📐 Pacing Calculator</a>
+        <small id="account-info">Luis R. | FTP: 194W</small>
+        <a href="/pacing" style="font-size:0.85rem; margin-left:16px;">📐 Pacing</a>
         <a href="/zones" style="font-size:0.85rem; margin-left:16px;">⚙️ Zonas</a>
-        <button id="sync-btn" onclick="doSync()">🔄 Sync Strava</button>
+        <a href="/activities" style="font-size:0.85rem; margin-left:16px;">📋 Actividades</a>
+        <button id="sync-btn" onclick="doSync()">🔄 Sync</button>
+        <button class="logout-btn" onclick="doLogout()">↩ Logout</button>
     </div>
 
     <div id="readiness-card" class="readiness-card">
@@ -100,22 +104,37 @@
         };
 
         async function loadData() {
-            const [loadRes, weeklyRes, activitiesRes, readinessRes] = await Promise.all([
+            const [loadRes, weeklyRes, activitiesRes, readinessRes, accountRes] = await Promise.all([
                 fetch('/api/training-load'),
                 fetch('/api/weekly-summary'),
                 fetch('/api/activities?limit=100&activity_type=Ride'),
                 fetch('/api/readiness'),
+                fetch('/api/account'),
             ]);
             const load = await loadRes.json();
             const weekly = await weeklyRes.json();
             const activities = await activitiesRes.json();
             const readiness = await readinessRes.json();
+            const account = await accountRes.json();
+
+            if (account.configured) {
+                document.getElementById('account-info').textContent =
+                    `Athlete #${account.athlete_id} | FTP: 194W`;
+            }
 
             renderReadiness(readiness);
             renderStats(load);
             renderLoadChart(load);
             renderWeeklyChart(weekly);
             renderActivities(activities);
+        }
+
+        async function doLogout() {
+            if (!confirm('¿Cerrar sesión? Se eliminarán tus credenciales y tokens. Tus datos de entrenamiento (DB) se conservan.')) return;
+            const res = await fetch('/api/logout', { method: 'POST' });
+            if (res.ok) {
+                window.location.href = '/setup';
+            }
         }
 
         function renderReadiness(data) {

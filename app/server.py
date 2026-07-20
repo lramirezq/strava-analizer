@@ -80,6 +80,47 @@ def setup_page():
         return f.read()
 
 
+@app.get("/api/account")
+def api_account():
+    """Return current account info from stored tokens."""
+    import json
+    from app.config import STRAVA_CLIENT_ID, TOKENS_PATH
+
+    if not TOKENS_PATH.exists() or not STRAVA_CLIENT_ID:
+        return JSONResponse({"configured": False})
+
+    with open(TOKENS_PATH) as f:
+        tokens = json.load(f)
+
+    return JSONResponse({
+        "configured": True,
+        "athlete_id": tokens.get("athlete_id"),
+        "client_id": STRAVA_CLIENT_ID,
+    })
+
+
+@app.post("/api/logout")
+def api_logout():
+    """Clear tokens and credentials — forces re-authentication."""
+    from app.config import BASE_DIR, TOKENS_PATH
+    import os
+
+    removed = []
+
+    # Remove tokens
+    if TOKENS_PATH.exists():
+        TOKENS_PATH.unlink()
+        removed.append("tokens.json")
+
+    # Remove .env
+    env_path = BASE_DIR / ".env"
+    if env_path.exists():
+        env_path.unlink()
+        removed.append(".env")
+
+    return JSONResponse({"status": "ok", "removed": removed})
+
+
 @app.post("/api/setup")
 async def api_setup(request: Request):
     """Save Strava credentials to .env file."""
