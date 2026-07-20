@@ -6,6 +6,14 @@ Personal training analytics app that connects to Strava to download, organize, a
 
 🇪🇸 [Versión en español](README.es.md)
 
+## ⬇️ Download
+
+**[Descargar Strava Analyzer v1.0.0 para macOS](https://github.com/lramirezq/strava-analizer/releases/download/v1.0.0/Strava.Analyzer.dmg)** (37MB)
+
+App standalone — no requiere Python ni dependencias. Solo descarga, instala, y conecta con tu Strava.
+
+> Requiere macOS 12.0+ y una [app registrada en Strava](https://www.strava.com/settings/api) (gratis, 2 minutos).
+
 ## Features
 
 - **📊 Training Load Dashboard** — CTL/ATL/TSB chart with rest-day projection
