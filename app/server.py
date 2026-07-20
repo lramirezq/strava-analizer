@@ -41,17 +41,35 @@ def api_sync():
         capture_output=True,
         text=True,
         cwd=str(__import__("pathlib").Path(__file__).resolve().parent.parent),
-        timeout=120,
+        timeout=300,
     )
     if result.returncode != 0:
         return JSONResponse(
             {"status": "error", "message": "Sync failed. Check server logs."},
             status_code=500,
         )
-    # Extract summary from output
-    output = result.stdout.strip().split("\n")
-    summary = [line.strip() for line in output if "✅" in line or "New" in line or "Total" in line]
-    return JSONResponse({"status": "ok", "message": "\n".join(summary) or "Sync complete"})
+    # Extract new/total counts from output
+    output = result.stdout.strip()
+    new_count = 0
+    total_count = 0
+    for line in output.split("\n"):
+        if "New activities:" in line:
+            try:
+                new_count = int(line.split(":")[-1].strip())
+            except ValueError:
+                pass
+        if "Total in database:" in line:
+            try:
+                total_count = int(line.split(":")[-1].strip())
+            except ValueError:
+                pass
+
+    if new_count > 0:
+        msg = f"{new_count} actividades nuevas descargadas. Total: {total_count}"
+    else:
+        msg = f"Todo al día. {total_count} actividades en total."
+
+    return JSONResponse({"status": "ok", "message": msg, "new": new_count, "total": total_count})
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -208,14 +226,44 @@ def oauth_callback(code: str = "", error: str = ""):
 
     athlete_name = tokens.get("athlete", {}).get("firstname", "")
 
-    # Redirect to dashboard with success
+    # Redirect to dashboard with auto-sync
     return HTMLResponse(f"""
-        <html><body style="background:#0f1117;color:#e1e4e8;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh">
-        <div style="text-align:center">
-            <h1>✅ Conectado como {athlete_name}!</h1>
-            <p style="color:#8b949e;margin:16px 0">Redirigiendo al dashboard...</p>
-            <script>setTimeout(()=>window.location='/', 2000)</script>
-        </div></body></html>
+        <html>
+        <head><meta charset="UTF-8"></head>
+        <body style="background:#0f1117;color:#e1e4e8;font-family:-apple-system,sans-serif;display:flex;align-items:center;justify-content:center;height:100vh">
+        <div style="text-align:center;max-width:400px">
+            <div style="font-size:3rem;margin-bottom:16px">🚴</div>
+            <h1 style="margin-bottom:8px">¡Hola, {athlete_name}!</h1>
+            <p style="color:#8b949e;margin-bottom:24px">Descargando tus actividades de Strava...</p>
+            <div id="progress" style="background:#161b22;border:1px solid #30363d;border-radius:8px;padding:16px;text-align:left">
+                <p id="status" style="color:#58a6ff;font-size:0.9rem">⏳ Iniciando sincronización...</p>
+                <div id="details" style="color:#8b949e;font-size:0.8rem;margin-top:8px"></div>
+            </div>
+        </div>
+        <script>
+            async function startSync() {{
+                const status = document.getElementById('status');
+                const details = document.getElementById('details');
+                try {{
+                    status.textContent = '⏳ Sincronizando actividades...';
+                    const res = await fetch('/api/sync', {{ method: 'POST' }});
+                    const data = await res.json();
+                    if (res.ok) {{
+                        status.textContent = '✅ ¡Listo!';
+                        details.textContent = data.message || 'Sincronización completa';
+                        setTimeout(() => window.location.href = '/', 1500);
+                    }} else {{
+                        status.textContent = '⚠️ Sync falló, pero puedes sincronizar desde el dashboard';
+                        setTimeout(() => window.location.href = '/', 2000);
+                    }}
+                }} catch(e) {{
+                    status.textContent = '⚠️ Error de conexión';
+                    setTimeout(() => window.location.href = '/', 2000);
+                }}
+            }}
+            startSync();
+        </script>
+        </body></html>
     """)
 
 
